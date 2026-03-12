@@ -1,0 +1,5 @@
+{
+  "name": "MedAnalyzer Pro",
+  "description": "藥品化學、生物分析及副作用及服用須知避免其他藥品或食品的交互作用",
+  "requestFramePermissions": ["camera"]
+}
