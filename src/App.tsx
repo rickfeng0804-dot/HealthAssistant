@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Pill, Droplet, HeartPulse, Activity, Leaf, LogOut } from 'lucide-react';
+import { Pill, Droplet, HeartPulse, Activity, Leaf, LogOut, History, Archive } from 'lucide-react';
 import MedAnalyzer from './components/MedAnalyzer';
 import UricAcidPage from './components/UricAcidPage';
 import BloodPressurePage from './components/BloodPressurePage';
 import BloodSugarPage from './components/BloodSugarPage';
 import FattyLiverPage from './components/FattyLiverPage';
+import HistoryPage from './components/HistoryPage';
+import MyMedsPage from './components/MyMedsPage';
 import { auth, loginWithGoogle, logout } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 export default function App() {
-  const [activePage, setActivePage] = useState<'analyzer' | 'uricAcid' | 'bloodPressure' | 'bloodSugar' | 'fattyLiver'>('analyzer');
+  const [activePage, setActivePage] = useState<'analyzer' | 'uricAcid' | 'bloodPressure' | 'bloodSugar' | 'fattyLiver' | 'history' | 'myMeds'>('analyzer');
   const [userId, setUserId] = useState<string | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
 
@@ -138,16 +140,40 @@ export default function App() {
                 <Leaf className="w-4 h-4" />
                 <span>脂肪肝問題輔助</span>
               </button>
+              <button
+                onClick={() => setActivePage('history')}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+                  activePage === 'history' 
+                    ? 'bg-white text-indigo-700 shadow-sm' 
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <History className="w-4 h-4" />
+                <span>綜合歷史紀錄</span>
+              </button>
+              <button
+                onClick={() => setActivePage('myMeds')}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+                  activePage === 'myMeds' 
+                    ? 'bg-white text-indigo-700 shadow-sm' 
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Archive className="w-4 h-4" />
+                <span>我的藥箱</span>
+              </button>
             </nav>
           </div>
         </header>
 
         <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {activePage === 'analyzer' && <MedAnalyzer />}
+          {activePage === 'analyzer' && <MedAnalyzer userId={userId} />}
           {activePage === 'uricAcid' && <UricAcidPage userId={userId} />}
           {activePage === 'bloodPressure' && <BloodPressurePage userId={userId} />}
           {activePage === 'bloodSugar' && <BloodSugarPage userId={userId} />}
           {activePage === 'fattyLiver' && <FattyLiverPage userId={userId} />}
+          {activePage === 'history' && <HistoryPage userId={userId} />}
+          {activePage === 'myMeds' && <MyMedsPage userId={userId} />}
         </main>
       </div>
     </ErrorBoundary>

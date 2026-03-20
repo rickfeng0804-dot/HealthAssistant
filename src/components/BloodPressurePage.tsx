@@ -134,15 +134,27 @@ export default function BloodPressurePage({ userId }: { userId: string | null })
     // Save to Firestore
     if (systolic !== '' && diastolic !== '') {
       const path = `users/${userId}/bloodPressureRecords`;
+      const healthRecordsPath = `users/${userId}/healthRecords`;
+      const timestamp = new Date().toISOString();
+      const recordData = {
+        userId,
+        systolic: Number(systolic),
+        diastolic: Number(diastolic),
+        medications: medications.trim(),
+        sideEffects: sideEffects.trim(),
+        symptoms: symptoms.trim(),
+        timestamp
+      };
+
       try {
-        await addDoc(collection(db, path), {
+        await addDoc(collection(db, path), recordData);
+        await addDoc(collection(db, healthRecordsPath), {
           userId,
-          systolic: Number(systolic),
-          diastolic: Number(diastolic),
-          medications: medications.trim(),
-          sideEffects: sideEffects.trim(),
-          symptoms: symptoms.trim(),
-          timestamp: new Date().toISOString()
+          type: 'bloodPressure',
+          title: '血壓紀錄',
+          summary: `收縮壓 ${systolic} / 舒張壓 ${diastolic} mmHg`,
+          timestamp,
+          details: recordData
         });
       } catch (error) {
         handleFirestoreError(error, OperationType.CREATE, path);

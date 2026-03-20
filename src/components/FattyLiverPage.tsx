@@ -133,14 +133,26 @@ export default function FattyLiverPage({ userId }: { userId: string | null }) {
     // Save to Firestore
     if (weight !== '') {
       const path = `users/${userId}/fattyLiverRecords`;
+      const healthRecordsPath = `users/${userId}/healthRecords`;
+      const timestamp = new Date().toISOString();
+      const recordData = {
+        userId,
+        weight: Number(weight),
+        dietExercise: dietExercise.trim(),
+        medications: medications.trim(),
+        symptoms: symptoms.trim(),
+        timestamp
+      };
+
       try {
-        await addDoc(collection(db, path), {
+        await addDoc(collection(db, path), recordData);
+        await addDoc(collection(db, healthRecordsPath), {
           userId,
-          weight: Number(weight),
-          dietExercise: dietExercise.trim(),
-          medications: medications.trim(),
-          symptoms: symptoms.trim(),
-          timestamp: new Date().toISOString()
+          type: 'fattyLiver',
+          title: '脂肪肝紀錄',
+          summary: `體重 ${weight} kg`,
+          timestamp,
+          details: recordData
         });
       } catch (error) {
         handleFirestoreError(error, OperationType.CREATE, path);

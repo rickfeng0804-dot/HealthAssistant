@@ -130,8 +130,25 @@ service cloud.firestore {
              isValidOptionalString('symptoms', 0, 1000);
     }
 
+    function isValidHealthRecord() {
+      return hasRequiredFields(['userId', 'type', 'title', 'summary', 'timestamp']) &&
+             request.resource.data.userId is string && request.resource.data.userId.size() > 0 && request.resource.data.userId.size() < 100 &&
+             request.resource.data.type in ['bloodPressure', 'bloodSugar', 'fattyLiver', 'uricAcid'] &&
+             request.resource.data.title is string && request.resource.data.title.size() > 0 && request.resource.data.title.size() < 200 &&
+             request.resource.data.summary is string && request.resource.data.summary.size() > 0 && request.resource.data.summary.size() < 500 &&
+             isValidDateString(request.resource.data.timestamp) &&
+             (!('details' in request.resource.data) || request.resource.data.details is map);
+    }
+
     match /users/{userId} {
       allow read, write: if false; // Users collection itself is not directly readable/writable here
+
+      match /healthRecords/{recordId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidHealthRecord() && uidUnchanged();
+        allow update: if isOwner(userId) && isValidHealthRecord() && uidNotModified();
+        allow delete: if isOwner(userId);
+      }
 
       match /bloodPressureRecords/{recordId} {
         allow read: if isOwner(userId);

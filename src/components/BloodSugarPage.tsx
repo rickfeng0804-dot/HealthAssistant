@@ -134,15 +134,32 @@ export default function BloodSugarPage({ userId }: { userId: string | null }) {
     // Save to Firestore
     if (fasting !== '' || postprandial !== '') {
       const path = `users/${userId}/bloodSugarRecords`;
+      const healthRecordsPath = `users/${userId}/healthRecords`;
+      const timestamp = new Date().toISOString();
+      const recordData = {
+        userId,
+        ...(fasting !== '' && { fasting: Number(fasting) }),
+        ...(postprandial !== '' && { postprandial: Number(postprandial) }),
+        medications: medications.trim(),
+        sideEffects: sideEffects.trim(),
+        symptoms: symptoms.trim(),
+        timestamp
+      };
+
       try {
-        await addDoc(collection(db, path), {
+        await addDoc(collection(db, path), recordData);
+        
+        let summaryText = [];
+        if (fasting !== '') summaryText.push(`空腹 ${fasting}`);
+        if (postprandial !== '') summaryText.push(`飯後 ${postprandial}`);
+
+        await addDoc(collection(db, healthRecordsPath), {
           userId,
-          ...(fasting !== '' && { fasting: Number(fasting) }),
-          ...(postprandial !== '' && { postprandial: Number(postprandial) }),
-          medications: medications.trim(),
-          sideEffects: sideEffects.trim(),
-          symptoms: symptoms.trim(),
-          timestamp: new Date().toISOString()
+          type: 'bloodSugar',
+          title: '血糖紀錄',
+          summary: `${summaryText.join(' / ')} mg/dL`,
+          timestamp,
+          details: recordData
         });
       } catch (error) {
         handleFirestoreError(error, OperationType.CREATE, path);

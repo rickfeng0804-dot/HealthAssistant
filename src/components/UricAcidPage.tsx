@@ -134,15 +134,32 @@ export default function UricAcidPage({ userId }: { userId: string | null }) {
     // Save to Firestore
     if (uricAcid !== '' || waterIntake !== '') {
       const path = `users/${userId}/uricAcidRecords`;
+      const healthRecordsPath = `users/${userId}/healthRecords`;
+      const timestamp = new Date().toISOString();
+      const recordData = {
+        userId,
+        ...(uricAcid !== '' && { uricAcid: Number(uricAcid) }),
+        ...(waterIntake !== '' && { waterIntake: Number(waterIntake) }),
+        medications: medications.trim(),
+        sideEffects: sideEffects.trim(),
+        symptoms: symptoms.trim(),
+        timestamp
+      };
+
       try {
-        await addDoc(collection(db, path), {
+        await addDoc(collection(db, path), recordData);
+        
+        let summaryText = [];
+        if (uricAcid !== '') summaryText.push(`尿酸 ${uricAcid} mg/dL`);
+        if (waterIntake !== '') summaryText.push(`飲水 ${waterIntake} ml`);
+
+        await addDoc(collection(db, healthRecordsPath), {
           userId,
-          uricAcid: uricAcid !== '' ? Number(uricAcid) : null,
-          waterIntake: waterIntake !== '' ? Number(waterIntake) : null,
-          medications: medications.trim(),
-          sideEffects: sideEffects.trim(),
-          symptoms: symptoms.trim(),
-          timestamp: new Date().toISOString()
+          type: 'uricAcid',
+          title: '尿酸紀錄',
+          summary: summaryText.join(' / '),
+          timestamp,
+          details: recordData
         });
       } catch (error) {
         handleFirestoreError(error, OperationType.CREATE, path);

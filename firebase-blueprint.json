@@ -60,9 +60,27 @@
         "timestamp": { "type": "string", "format": "date-time", "description": "When the record was created" }
       },
       "required": ["userId", "timestamp"]
+    },
+    "HealthRecord": {
+      "title": "Health Record",
+      "description": "A unified record of any health tracking event",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The ID of the user who owns this record" },
+        "type": { "type": "string", "enum": ["bloodPressure", "bloodSugar", "fattyLiver", "uricAcid"], "description": "The type of health record" },
+        "title": { "type": "string", "description": "Display title for the record" },
+        "summary": { "type": "string", "description": "A short summary of the record values" },
+        "timestamp": { "type": "string", "format": "date-time", "description": "When the record was created" },
+        "details": { "type": "object", "description": "The original record data" }
+      },
+      "required": ["userId", "type", "title", "summary", "timestamp"]
     }
   },
   "firestore": {
+    "/users/{userId}/healthRecords/{recordId}": {
+      "schema": { "$ref": "#/entities/HealthRecord" },
+      "description": "Unified health records for a user"
+    },
     "/users/{userId}/bloodPressureRecords/{recordId}": {
       "schema": { "$ref": "#/entities/BloodPressureRecord" },
       "description": "Blood pressure records for a user"
