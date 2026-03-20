@@ -1,0 +1,83 @@
+{
+  "entities": {
+    "BloodPressureRecord": {
+      "title": "Blood Pressure Record",
+      "description": "A record of a user's blood pressure tracking",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The ID of the user who owns this record" },
+        "systolic": { "type": "number", "description": "Systolic blood pressure (mmHg)" },
+        "diastolic": { "type": "number", "description": "Diastolic blood pressure (mmHg)" },
+        "medications": { "type": "string", "description": "Medications taken" },
+        "sideEffects": { "type": "string", "description": "Side effects experienced" },
+        "symptoms": { "type": "string", "description": "Symptoms experienced" },
+        "timestamp": { "type": "string", "format": "date-time", "description": "When the record was created" }
+      },
+      "required": ["userId", "timestamp"]
+    },
+    "BloodSugarRecord": {
+      "title": "Blood Sugar Record",
+      "description": "A record of a user's blood sugar tracking",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The ID of the user who owns this record" },
+        "fasting": { "type": "number", "description": "Fasting blood sugar (mg/dL)" },
+        "postprandial": { "type": "number", "description": "Postprandial blood sugar (mg/dL)" },
+        "medications": { "type": "string", "description": "Medications taken" },
+        "sideEffects": { "type": "string", "description": "Side effects experienced" },
+        "symptoms": { "type": "string", "description": "Symptoms experienced" },
+        "timestamp": { "type": "string", "format": "date-time", "description": "When the record was created" }
+      },
+      "required": ["userId", "timestamp"]
+    },
+    "FattyLiverRecord": {
+      "title": "Fatty Liver Record",
+      "description": "A record of a user's fatty liver tracking",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The ID of the user who owns this record" },
+        "weight": { "type": "number", "description": "Weight (kg)" },
+        "ast": { "type": "number", "description": "AST (GOT) level" },
+        "alt": { "type": "number", "description": "ALT (GPT) level" },
+        "dietExercise": { "type": "string", "description": "Diet and exercise record" },
+        "medications": { "type": "string", "description": "Medications or supplements taken" },
+        "symptoms": { "type": "string", "description": "Symptoms experienced" },
+        "timestamp": { "type": "string", "format": "date-time", "description": "When the record was created" }
+      },
+      "required": ["userId", "timestamp"]
+    },
+    "UricAcidRecord": {
+      "title": "Uric Acid Record",
+      "description": "A record of a user's uric acid tracking",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The ID of the user who owns this record" },
+        "waterIntake": { "type": "number", "description": "Water intake (ml)" },
+        "uricAcid": { "type": "number", "description": "Uric acid level (mg/dL)" },
+        "medications": { "type": "string", "description": "Medications taken" },
+        "sideEffects": { "type": "string", "description": "Side effects experienced" },
+        "symptoms": { "type": "string", "description": "Symptoms experienced" },
+        "timestamp": { "type": "string", "format": "date-time", "description": "When the record was created" }
+      },
+      "required": ["userId", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/bloodPressureRecords/{recordId}": {
+      "schema": { "$ref": "#/entities/BloodPressureRecord" },
+      "description": "Blood pressure records for a user"
+    },
+    "/users/{userId}/bloodSugarRecords/{recordId}": {
+      "schema": { "$ref": "#/entities/BloodSugarRecord" },
+      "description": "Blood sugar records for a user"
+    },
+    "/users/{userId}/fattyLiverRecords/{recordId}": {
+      "schema": { "$ref": "#/entities/FattyLiverRecord" },
+      "description": "Fatty liver records for a user"
+    },
+    "/users/{userId}/uricAcidRecords/{recordId}": {
+      "schema": { "$ref": "#/entities/UricAcidRecord" },
+      "description": "Uric acid records for a user"
+    }
+  }
+}

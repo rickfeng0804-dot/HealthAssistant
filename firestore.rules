@@ -1,0 +1,165 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users/{userId}/bloodPressureRecords
+    // Fields:
+    //   - userId: string (required)
+    //   - systolic: number (required)
+    //   - diastolic: number (required)
+    //   - medications: string (optional)
+    //   - sideEffects: string (optional)
+    //   - symptoms: string (optional)
+    //   - timestamp: string (required, ISO 8601 date string)
+    //
+    // Collection: users/{userId}/bloodSugarRecords
+    // Fields:
+    //   - userId: string (required)
+    //   - fasting: number (optional)
+    //   - postprandial: number (optional)
+    //   - medications: string (optional)
+    //   - sideEffects: string (optional)
+    //   - symptoms: string (optional)
+    //   - timestamp: string (required, ISO 8601 date string)
+    //
+    // Collection: users/{userId}/fattyLiverRecords
+    // Fields:
+    //   - userId: string (required)
+    //   - weight: number (optional)
+    //   - ast: number (optional)
+    //   - alt: number (optional)
+    //   - dietExercise: string (optional)
+    //   - medications: string (optional)
+    //   - symptoms: string (optional)
+    //   - timestamp: string (required, ISO 8601 date string)
+    //
+    // Collection: users/{userId}/uricAcidRecords
+    // Fields:
+    //   - userId: string (required)
+    //   - waterIntake: number (optional)
+    //   - uricAcid: number (optional)
+    //   - medications: string (optional)
+    //   - sideEffects: string (optional)
+    //   - symptoms: string (optional)
+    //   - timestamp: string (required, ISO 8601 date string)
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function uidUnchanged() {
+      return !('userId' in request.resource.data) || request.resource.data.userId == request.auth.uid;
+    }
+
+    function uidNotModified() {
+      return !('userId' in request.resource.data) || request.resource.data.userId == resource.data.userId;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    }
+
+    function isValidOptionalString(field, minLen, maxLen) {
+      return !(field in request.resource.data) ||
+             (request.resource.data[field] is string &&
+              request.resource.data[field].size() >= minLen &&
+              request.resource.data[field].size() <= maxLen);
+    }
+
+    function isValidOptionalNumber(field) {
+      return !(field in request.resource.data) || request.resource.data[field] is number;
+    }
+
+    // Domain Validators
+    function isValidBloodPressureRecord() {
+      return hasRequiredFields(['userId', 'systolic', 'diastolic', 'timestamp']) &&
+             request.resource.data.userId is string && request.resource.data.userId.size() > 0 && request.resource.data.userId.size() < 100 &&
+             request.resource.data.systolic is number && request.resource.data.systolic > 0 &&
+             request.resource.data.diastolic is number && request.resource.data.diastolic > 0 &&
+             isValidDateString(request.resource.data.timestamp) &&
+             isValidOptionalString('medications', 0, 1000) &&
+             isValidOptionalString('sideEffects', 0, 1000) &&
+             isValidOptionalString('symptoms', 0, 1000);
+    }
+
+    function isValidBloodSugarRecord() {
+      return hasRequiredFields(['userId', 'timestamp']) &&
+             request.resource.data.userId is string && request.resource.data.userId.size() > 0 && request.resource.data.userId.size() < 100 &&
+             isValidOptionalNumber('fasting') &&
+             isValidOptionalNumber('postprandial') &&
+             isValidDateString(request.resource.data.timestamp) &&
+             isValidOptionalString('medications', 0, 1000) &&
+             isValidOptionalString('sideEffects', 0, 1000) &&
+             isValidOptionalString('symptoms', 0, 1000);
+    }
+
+    function isValidFattyLiverRecord() {
+      return hasRequiredFields(['userId', 'timestamp']) &&
+             request.resource.data.userId is string && request.resource.data.userId.size() > 0 && request.resource.data.userId.size() < 100 &&
+             isValidOptionalNumber('weight') &&
+             isValidOptionalNumber('ast') &&
+             isValidOptionalNumber('alt') &&
+             isValidDateString(request.resource.data.timestamp) &&
+             isValidOptionalString('dietExercise', 0, 1000) &&
+             isValidOptionalString('medications', 0, 1000) &&
+             isValidOptionalString('symptoms', 0, 1000);
+    }
+
+    function isValidUricAcidRecord() {
+      return hasRequiredFields(['userId', 'timestamp']) &&
+             request.resource.data.userId is string && request.resource.data.userId.size() > 0 && request.resource.data.userId.size() < 100 &&
+             isValidOptionalNumber('waterIntake') &&
+             isValidOptionalNumber('uricAcid') &&
+             isValidDateString(request.resource.data.timestamp) &&
+             isValidOptionalString('medications', 0, 1000) &&
+             isValidOptionalString('sideEffects', 0, 1000) &&
+             isValidOptionalString('symptoms', 0, 1000);
+    }
+
+    match /users/{userId} {
+      allow read, write: if false; // Users collection itself is not directly readable/writable here
+
+      match /bloodPressureRecords/{recordId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidBloodPressureRecord() && uidUnchanged();
+        allow update: if isOwner(userId) && isValidBloodPressureRecord() && uidNotModified();
+        allow delete: if isOwner(userId);
+      }
+
+      match /bloodSugarRecords/{recordId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidBloodSugarRecord() && uidUnchanged();
+        allow update: if isOwner(userId) && isValidBloodSugarRecord() && uidNotModified();
+        allow delete: if isOwner(userId);
+      }
+
+      match /fattyLiverRecords/{recordId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidFattyLiverRecord() && uidUnchanged();
+        allow update: if isOwner(userId) && isValidFattyLiverRecord() && uidNotModified();
+        allow delete: if isOwner(userId);
+      }
+
+      match /uricAcidRecords/{recordId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidUricAcidRecord() && uidUnchanged();
+        allow update: if isOwner(userId) && isValidUricAcidRecord() && uidNotModified();
+        allow delete: if isOwner(userId);
+      }
+    }
+  }
+}

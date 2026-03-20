@@ -72,7 +72,10 @@ export default function MedAnalyzer() {
 請務必使用以下 Markdown 格式回覆：
 
 ## 藥品概述
-[提供藥品的化學成分、生物分析、它是什麼以及它的作用機制]
+[提供藥品的基本介紹、它是什麼以及它的作用機制]
+
+## 藥品成分
+[詳細列出藥品的主要有效成分(Active Ingredients)與賦形劑(Inactive Ingredients)，並提供各成分的詳細說明與作用]
 
 ## 副作用
 [列出常見及嚴重的副作用]
