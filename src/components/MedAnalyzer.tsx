@@ -1,9 +1,9 @@
-import React, { useState, useRef } from 'react';
-import { Camera, Upload, Search, AlertTriangle, Info, Activity, Loader2, X, Pill, Clock, Zap, CheckCircle, FlaskConical, Bookmark, BookmarkCheck } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Camera, Upload, Search, AlertTriangle, Info, Activity, Loader2, X, Pill, Clock, Zap, CheckCircle, FlaskConical, Bookmark, BookmarkCheck, ShieldAlert, Plus, Archive } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
 import Markdown from 'react-markdown';
 import { motion, AnimatePresence } from 'motion/react';
-import { addDoc, collection } from 'firebase/firestore';
+import { addDoc, collection, getDocs, query as firestoreQuery, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 
@@ -19,8 +19,29 @@ export default function MedAnalyzer({ userId }: { userId: string | null }) {
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   
+  // Interaction check state
+  const [savedMeds, setSavedMeds] = useState<{id: string, name: string}[]>([]);
+  const [manualMeds, setManualMeds] = useState<string[]>([]);
+  const [newManualMed, setNewManualMed] = useState('');
+  const [interactionResult, setInteractionResult] = useState<string | null>(null);
+  const [checkingInteraction, setCheckingInteraction] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!userId) return;
+    const fetchSavedMeds = async () => {
+      try {
+        const q = firestoreQuery(collection(db, `users/${userId}/myMeds`), orderBy('timestamp', 'desc'));
+        const snapshot = await getDocs(q);
+        setSavedMeds(snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name })));
+      } catch (err) {
+        console.error("Failed to fetch saved meds", err);
+      }
+    };
+    fetchSavedMeds();
+  }, [userId, isSaved]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -83,6 +104,7 @@ export default function MedAnalyzer({ userId }: { userId: string | null }) {
     setError(null);
     setResult(null);
     setIsSaved(false);
+    setInteractionResult(null);
 
     try {
       const parts: any[] = [];
@@ -161,6 +183,56 @@ export default function MedAnalyzer({ userId }: { userId: string | null }) {
       handleFirestoreError(error, OperationType.CREATE, path);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleAddManualMed = () => {
+    if (newManualMed.trim() && !manualMeds.includes(newManualMed.trim())) {
+      setManualMeds([...manualMeds, newManualMed.trim()]);
+      setNewManualMed('');
+    }
+  };
+
+  const handleRemoveManualMed = (med: string) => {
+    setManualMeds(manualMeds.filter(m => m !== med));
+  };
+
+  const checkInteractions = async () => {
+    const allOtherMeds = [...new Set([...savedMeds.map(m => m.name), ...manualMeds])];
+    const currentMedName = query.trim() || '當前查詢的藥品';
+    const filteredOtherMeds = allOtherMeds.filter(m => m.toLowerCase() !== currentMedName.toLowerCase());
+
+    if (filteredOtherMeds.length === 0) {
+      setError('請先從藥箱加入或手動輸入其他藥品，才能進行交互作用檢查。');
+      return;
+    }
+
+    setCheckingInteraction(true);
+    setInteractionResult(null);
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.1-pro-preview',
+        contents: `你是一位專業的藥師與藥理學家。請分析以下藥品之間的潛在交互作用：
+主要查詢藥品：${currentMedName}
+其他正在服用的藥品：${filteredOtherMeds.join('、')}
+
+請以繁體中文提供詳細的交互作用分析。對於每一組有潛在交互作用的藥品，請務必使用以下結構明確標示：
+
+### ⚠️ [藥品 A] 與 [藥品 B] 的交互作用
+* **嚴重程度**：[請明確標示：🔴 嚴重 (Severe) / 🟡 中度 (Moderate) / 🟢 輕微 (Mild) / ⚪ 無已知交互作用]
+* **潛在影響**：[具體說明可能發生的症狀、副作用加劇或藥效降低的情況]
+* **具體建議**：[提供具體、可執行的建議，例如：需要間隔幾小時服用、應避免同時服用、需特別監測哪些症狀、或必須立即諮詢醫師等]
+
+如果所有藥品之間都沒有已知的交互作用，請明確告知「目前未發現明顯的交互作用」，但仍提醒使用者若有不適應諮詢醫師。
+請使用 Markdown 格式排版，讓資訊易於閱讀。`,
+        config: { temperature: 0.2 }
+      });
+      setInteractionResult(response.text || '無法取得交互作用分析結果。');
+    } catch (err: any) {
+      console.error(err);
+      setError('交互作用檢查失敗，請稍後再試。');
+    } finally {
+      setCheckingInteraction(false);
     }
   };
 
@@ -397,6 +469,154 @@ export default function MedAnalyzer({ userId }: { userId: string | null }) {
               </Markdown>
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Interaction Check Section */}
+      <AnimatePresence>
+        {result && (
+          <motion.section
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden"
+          >
+            <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center gap-2">
+              <ShieldAlert className="w-5 h-5 text-rose-600" />
+              <h2 className="text-lg font-medium text-slate-900">藥品交互作用檢查</h2>
+            </div>
+            <div className="p-6 space-y-6">
+              <p className="text-sm text-slate-600">
+                檢查 <strong>{query.trim() || '當前藥品'}</strong> 與您正在服用的其他藥品是否有潛在的交互作用。
+              </p>
+
+              <div className="space-y-4">
+                {userId && savedMeds.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-medium text-slate-700 mb-2">來自「我的藥箱」的藥品：</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {savedMeds.map(med => (
+                        <span key={med.id} className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
+                          <Archive className="w-3 h-3 mr-1" />
+                          {med.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <h3 className="text-sm font-medium text-slate-700 mb-2">手動新增其他正在服用的藥品：</h3>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newManualMed}
+                      onChange={(e) => setNewManualMed(e.target.value)}
+                      placeholder="輸入藥品名稱..."
+                      className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddManualMed()}
+                    />
+                    <button
+                      onClick={handleAddManualMed}
+                      className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-200 transition-colors flex items-center gap-1"
+                    >
+                      <Plus className="w-4 h-4" />
+                      新增
+                    </button>
+                  </div>
+                  {manualMeds.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {manualMeds.map(med => (
+                        <span key={med} className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                          {med}
+                          <button onClick={() => handleRemoveManualMed(med)} className="ml-1.5 text-slate-400 hover:text-rose-500">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <button
+                onClick={checkInteractions}
+                disabled={checkingInteraction || (savedMeds.length === 0 && manualMeds.length === 0)}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 border border-transparent text-sm font-medium rounded-xl shadow-sm text-white bg-rose-600 hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-rose-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {checkingInteraction ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    檢查中...
+                  </>
+                ) : (
+                  <>
+                    <ShieldAlert className="w-4 h-4" />
+                    開始檢查交互作用
+                  </>
+                )}
+              </button>
+
+              {/* Interaction Result */}
+              <AnimatePresence>
+                {interactionResult && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="pt-6 border-t border-slate-100"
+                  >
+                    <div className="prose prose-slate max-w-none prose-headings:font-medium prose-p:leading-relaxed prose-li:marker:text-rose-500">
+                      <Markdown
+                        components={{
+                          h3: ({node, children, ...props}) => (
+                            <h3 className="flex items-center gap-2 text-lg font-bold text-slate-800 mt-6 mb-3 pb-2 border-b border-slate-200" {...props}>
+                              {children}
+                            </h3>
+                          ),
+                          li: ({node, children, ...props}) => {
+                            const getText = (n: any): string => {
+                              if (n.type === 'text') return n.value || '';
+                              if (n.children) return n.children.map(getText).join('');
+                              return '';
+                            };
+                            const text = node ? getText(node) : '';
+                            
+                            if (text.includes('嚴重程度')) {
+                              let bgColor = 'bg-slate-50';
+                              let textColor = 'text-slate-700';
+                              let borderColor = 'border-slate-200';
+                              
+                              if (text.includes('嚴重') || text.includes('絕對禁忌')) {
+                                bgColor = 'bg-rose-50';
+                                textColor = 'text-rose-800';
+                                borderColor = 'border-rose-200';
+                              } else if (text.includes('中度')) {
+                                bgColor = 'bg-amber-50';
+                                textColor = 'text-amber-800';
+                                borderColor = 'border-amber-200';
+                              } else if (text.includes('輕微') || text.includes('輕度')) {
+                                bgColor = 'bg-emerald-50';
+                                textColor = 'text-emerald-800';
+                                borderColor = 'border-emerald-200';
+                              }
+                              
+                              return (
+                                <li className={`p-3 rounded-xl border ${bgColor} ${textColor} ${borderColor} list-none mb-3 shadow-sm font-medium`} {...props}>
+                                  {children}
+                                </li>
+                              );
+                            }
+                            return <li className="mb-2" {...props}>{children}</li>;
+                          }
+                        }}
+                      >
+                        {interactionResult}
+                      </Markdown>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </motion.section>
         )}
       </AnimatePresence>
     </div>
